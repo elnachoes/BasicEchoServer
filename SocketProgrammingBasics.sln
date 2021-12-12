@@ -7,9 +7,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SocketListener", "SocketLis
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SocketClient", "SocketClient\SocketClient.csproj", "{E2D3DB3B-E150-4D89-937C-089FA9C1DF47}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChatServer", "ChatServer\ChatServer.csproj", "{449A014A-5077-404D-B65A-4CB403176512}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EchoServer", "ChatServer\EchoServer.csproj", "{449A014A-5077-404D-B65A-4CB403176512}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChatClient", "ChatClient\ChatClient.csproj", "{C32A4870-6AE4-40FB-B156-34C1E3450593}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EchoClient", "ChatClient\EchoClient.csproj", "{C32A4870-6AE4-40FB-B156-34C1E3450593}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
