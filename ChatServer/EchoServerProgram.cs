@@ -5,56 +5,72 @@ using System.Text;
 
 public class EchoServerProgram
 {
+    const byte CARRIAGE_RETURN = 13;
+    public static int FindCarriageReturn(byte[] buffer, int size)
+    {
+        for(var i = 0; i < size; i++)
+        {
+            if(buffer[i] == CARRIAGE_RETURN)
+                return i;
+        }
+
+        return -1;
+    }
+
     static void Main()
     {
         //set up socket
-        IPHostEntry Host = Dns.GetHostEntry("localhost");
-        IPAddress IpAddress = Host.AddressList[0];
-        IPEndPoint ServerEndPoint = new IPEndPoint(IpAddress, 11000);
-        Socket ServerSocket = new Socket(IpAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+        var ServerSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
         //bind the socket and listen
-        ServerSocket.Bind(ServerEndPoint);
-        ServerSocket.Listen(10);
+        ServerSocket.Bind(new IPEndPoint(IPAddress.Any, 11000));
+        ServerSocket.Listen(99);
 
-        string Data = string.Empty;
-        byte[] ByteBuffer;
+        byte[] ByteBuffer = new byte[1024];
         int BytesTransferred;
 
-        //wait for someone to connect to the server
-        Console.WriteLine("Waiting for a connection...");
-        ServerSocket = ServerSocket.Accept();
-        Console.WriteLine("someone connected...");
-
-        //send a welcome message to the client
-        Data = "send messages and the server will echo them back\n";
-        ServerSocket.Send(Encoding.ASCII.GetBytes(Data));
-
-        //main echo loop
-        Data = string.Empty;
-        while (true)
+        while(true)
         {
-            ByteBuffer = new byte[1024];
+            //wait for someone to connect to the server
+            Console.WriteLine("Waiting for a connection...");
+            var clientSocket = ServerSocket.Accept();
+            Console.WriteLine("someone connected...");
 
-            BytesTransferred = ServerSocket.Receive(ByteBuffer);
-            if (BytesTransferred == 0)
-            {
-                break;
-            }
+            //send a welcome message to the client
+            clientSocket.Send(Encoding.ASCII.GetBytes("send messages and the server will echo them back\r\n"));
 
-            BytesTransferred = ServerSocket.Send(ByteBuffer);
-            if (BytesTransferred == 0)
+            //main echo loop
+            int offset = 0;
+            while (true)
             {
-                break;
+                BytesTransferred = clientSocket.Receive(ByteBuffer, offset, ByteBuffer.Length - offset, SocketFlags.None);
+                offset += BytesTransferred;
+                if (BytesTransferred == 0)
+                {
+                    break;
+                }
+
+                var carriageReturnPosition = FindCarriageReturn(ByteBuffer, offset);
+                if (carriageReturnPosition > 0)
+                {
+                    BytesTransferred = clientSocket.Send(ByteBuffer, carriageReturnPosition, SocketFlags.None);
+                    if (BytesTransferred == 0)
+                    {
+                        break;
+                    }
+
+                    offset = 0;
+                    Array.Clear(ByteBuffer);
+                }
             }
         }
 
-        //shutdown and close the socket
-        ServerSocket.Shutdown(SocketShutdown.Both);
-        ServerSocket.Close();
+        //////shutdown and close the socket
+        ////ServerSocket.Shutdown(SocketShutdown.Both);
+        ////ServerSocket.Close();
 
-        //press any key to close the terminal
-        Console.WriteLine("press any key to close...");
-        Console.ReadKey();
+        //////press any key to close the terminal
+        ////Console.WriteLine("press any key to close...");
+        ////Console.ReadKey();
     }
 }
