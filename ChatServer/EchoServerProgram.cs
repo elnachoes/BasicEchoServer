@@ -7,140 +7,199 @@ public class EchoServerProgram
 {
     const byte CARRIAGE_RETURN_DECIMAL = 13;
     const string CARRIAGE_RETURN_STRING = "\r\n";
+    const string NEW_LINE_SEQUENCE = "\n</> ";
     const int SERVER_PORT = 11000;
     const int LISTEN_COUNT = 99;
     const int BYTE_BUFFER_SIZE = 1024;
 
+    //mutex object
+    static object lockObject = new object();
+
+    //list of client socket connections
+    static List<Socket> activeConnections = new List<Socket>();
+
     //This just returns the position in a byte array for where the carriage return symbole is
-    static int FindCarriageReturn(byte[] buffer, int size)
+    private static int FindCarriageReturn(byte[] buffer, int size)
     {
         for(var i = 0; i < size; i++)
         {
             if(buffer[i] == CARRIAGE_RETURN_DECIMAL)
+            {
                 return i + 2;
+            }
         }
-
         return -1;
     }
 
     // This function is ment to be running constantly as a backround thread
     // It will keep searching for new guests to connect to the server
-    static void AcceptConnections(Socket serverSocket, List<Socket> activeConnections)
+    private static void AcceptConnections(Socket serverSocket)
     {
-        //mutex object
-        object lockObject = new object();
-
         while (true)
         {
             //wait for someone to connect to the server
-            Console.WriteLine("Waiting for a connection...");
+            Console.Write("Waiting for a connection..." + NEW_LINE_SEQUENCE);
             var clientSocket = serverSocket.Accept();
-            Console.WriteLine("someone connected...");
-
-            //every time a new client joins add the socket to the activeConnections
-            lock (lockObject)
-            {
-                activeConnections.Add(clientSocket);
-            }
-
-            //send the welcome message out to the new client
-            ServerSendMessage(clientSocket, "Welcome to the chat!");
-
-            //create a new background thread for listening to the new client
-            Thread listenToClients = new Thread(() => ListenToClients(clientSocket, activeConnections));
-            listenToClients.IsBackground = true;
-            listenToClients.Start();
+            Console.Write("someone connected..." + NEW_LINE_SEQUENCE);
+            AddClient(clientSocket);
         }
     }
 
     //this is a background thread that will listen to what clients send to the server
-    static void ListenToClients(Socket clientSocket ,List<Socket> activeConnections)
+    private static void ListenToClients(Socket clientSocket)
     {
-        //mutex object
-        object lockObject = new object();
-
         //variables for transfering data
-        byte[] ByteBuffer = new byte[BYTE_BUFFER_SIZE];
-        int BytesTransferred;
+        byte[] byteBuffer = new byte[BYTE_BUFFER_SIZE];
+        int bytesTransferred;
 
         //main listening loop that listens for bytes that come from the client
         int offset = 0;
         while (true)
         {
+            var socketsToRemove = new List<Socket>();
+
             //waits for a message from the user
-            BytesTransferred = clientSocket.Receive(ByteBuffer, offset, ByteBuffer.Length - offset, SocketFlags.None);
-            offset += BytesTransferred;
-            if (BytesTransferred == 0) 
+            //if the socket is disconnected then add them to the socket removal list and remove them
+            try
             {
-                clientSocket.Shutdown(SocketShutdown.Both);
-                clientSocket.Close();
+                bytesTransferred = clientSocket.Receive(byteBuffer, offset, byteBuffer.Length - offset, SocketFlags.None);
+                offset += bytesTransferred;
+                if (bytesTransferred == 0) 
+                {
+                    socketsToRemove.Add(clientSocket);
+                    RemoveClients(socketsToRemove);
+                    return;
+                }
+            }
+            catch (Exception)
+            {
+                socketsToRemove.Add(clientSocket);
+                RemoveClients(socketsToRemove);
                 return;
             }
 
+            var carriageReturnPosition = FindCarriageReturn(byteBuffer, offset);
+
             //echo the input from one client to all users
-            var carriageReturnPosition = FindCarriageReturn(ByteBuffer, offset);
             if (carriageReturnPosition > 0)
             {
-                foreach (var client in activeConnections)
-                {
-                    if (client != clientSocket)
-                    {
-                        try
-                        {
-                            BytesTransferred = client.Send(ByteBuffer, carriageReturnPosition, SocketFlags.None);
-                        }
-                        catch (Exception)
-                        {
-                            return;
-                        }
+                socketsToRemove.Clear();
 
-                        if (BytesTransferred == 0)
+                //mutex to protect activeConnections
+                lock (lockObject)
+                {
+                    foreach (var client in activeConnections)
+                    {
+                        //this if statement prevents sending the message out to the client that sent the message
+                        if (client != clientSocket)
                         {
-                            client.Shutdown(SocketShutdown.Both);
-                            client.Close();
-                            continue;
+                            //if the socket is disconnected then add them to the socket removal list and remove them
+                            try
+                            {
+                                bytesTransferred = client.Send(byteBuffer, carriageReturnPosition, SocketFlags.None);
+                                if (bytesTransferred == 0)
+                                {
+                                    socketsToRemove.Add(client);
+                                }
+                            }
+                            catch (Exception)
+                            {
+                                socketsToRemove.Add(client);
+                            }
                         }
                     }
                 }
+                RemoveClients(socketsToRemove);
                 offset = 0;
-                Array.Clear(ByteBuffer);
+                Array.Clear(byteBuffer);
             }
         }
     }
 
     //send a message to all clients from the server
-    static void ServerSendMessage(List<Socket> activeConnections, string message)
+    private static void ServerSendMessage(string message)
     {
+        var socketsToRemove = new List<Socket>();
+
         foreach (var client in activeConnections)
         {
             message += CARRIAGE_RETURN_STRING;
-            var bytesTransferred = client.Send(Encoding.ASCII.GetBytes(message));
+
+            //if the socket is disconnected then add them to the socket removal list and remove them
+            try
+            {
+                var bytesTransferred = client.Send(Encoding.ASCII.GetBytes(message));
+                if (bytesTransferred == 0)
+                {
+                    socketsToRemove.Add(client);
+                }
+            }
+            catch (Exception)
+            {
+                socketsToRemove.Add(client);
+            }            
+        }
+        RemoveClients(socketsToRemove);
+    }
+
+    //send a message to a specific client
+    private static void ServerSendMessage(Socket clientSocket,string message)
+    {
+        message += CARRIAGE_RETURN_STRING;
+
+        var socketsToRemove = new List<Socket>();
+
+        //if the socket is disconnected then add them to the socket removal list and remove them
+        try
+        {
+            var bytesTransferred = clientSocket.Send(Encoding.ASCII.GetBytes(message));
             if (bytesTransferred == 0)
             {
-                client.Shutdown(SocketShutdown.Both);
-                client.Close();
-                continue;
+                socketsToRemove.Add(clientSocket);
+            }
+        }
+        catch (Exception)
+        {
+            socketsToRemove.Add(clientSocket);
+        }
+        RemoveClients(socketsToRemove);
+    }
+
+    //adds a client socket and starts a thread to listen to that client
+    private static void AddClient(Socket clientSocket)
+    {
+        //every time a new client joins add the socket to the activeConnections
+        lock (lockObject)
+        {
+            activeConnections.Add(clientSocket);
+        }
+
+        //send the welcome message out to the new client
+        ServerSendMessage(clientSocket, "Welcome to the chat!");
+
+        //create a new background thread for listening to the new client
+        Thread listenToClients = new Thread(() => ListenToClients(clientSocket));
+        listenToClients.IsBackground = true;
+        listenToClients.Start();
+    }
+
+    //removes a client from the collection
+    private static void RemoveClients(List<Socket> clientsToRemove)
+    {
+        foreach (Socket client in clientsToRemove)
+        {
+            if (activeConnections.Contains(client))
+            {
+                lock (lockObject)
+                {
+                    activeConnections.Remove(client);
+                }
             }
         }
     }
 
-    //send a message to a specific client
-    static void ServerSendMessage(Socket clientSocket, string message)
+    private static void Main()
     {
-        message += CARRIAGE_RETURN_STRING;
-        var bytesTransferred = clientSocket.Send(Encoding.ASCII.GetBytes(message));
-        if (bytesTransferred == 0)
-        {
-            clientSocket.Shutdown(SocketShutdown.Both);
-            clientSocket.Close();
-            return;
-        }
-    }
-
-    static void Main()
-    {
-        var activeConnections = new List<Socket>();
-
         //set up socket
         var ServerSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
@@ -148,11 +207,14 @@ public class EchoServerProgram
         ServerSocket.Bind(new IPEndPoint(IPAddress.Any, SERVER_PORT));
         ServerSocket.Listen(LISTEN_COUNT);
 
-        //start a separate thread 
-        Thread acceptConnectionsThread = new Thread(() => AcceptConnections(ServerSocket, activeConnections));
+        //start a separate thread for accepting clients
+        Thread acceptConnectionsThread = new Thread(() => AcceptConnections(ServerSocket));
         acceptConnectionsThread.IsBackground = true;
         acceptConnectionsThread.Start();
 
+        //server welcome message
+        Console.Write("//-- echo server --//" + NEW_LINE_SEQUENCE);
+        
         //main loop for recieving server commands
         while (true)
         {
@@ -160,7 +222,7 @@ public class EchoServerProgram
             var userInput = Console.ReadLine();
             if (userInput == "exit")
             {
-                ServerSendMessage(activeConnections, "Server shutting down");
+                ServerSendMessage("Server shutting down");
                 return;
             }
         }
