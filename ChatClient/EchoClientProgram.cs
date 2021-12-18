@@ -1,5 +1,4 @@
-﻿using System;
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
 using System.Text;
 
@@ -39,7 +38,7 @@ public class EchoClientProgram
         {
             ByteBuffer = new byte[1024];
             UserInput = Console.ReadLine();
-            
+
             if (UserInput == "exit")
             {
                 break;

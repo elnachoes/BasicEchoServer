@@ -1,7 +1,6 @@
 ﻿
 // CODE RETRIEVED FROM : https://www.c-sharpcorner.com/article/socket-programming-in-C-Sharp/
 
-using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
