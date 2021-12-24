@@ -4,66 +4,81 @@ using System.Text;
 
 public class EchoClientProgram
 {
-    static void Main()
+    private static IPEndPoint GetServerEndpoint()
     {
-        string UserInput = string.Empty;
-        string Data = string.Empty;
-        byte[] ByteBuffer;
-        int BytesTransferred;
+        var Host = Dns.GetHostEntry("localhost");
+        var IpAddress = Host.AddressList[0];
+        var ServerEndPoint = new IPEndPoint(IpAddress, 11000);
+        return ServerEndPoint;
+    }
 
-        //set up socket
-        IPHostEntry Host = Dns.GetHostEntry("localhost");
-        IPAddress IpAddress = Host.AddressList[0];
-        IPEndPoint ServerEndPoint = new IPEndPoint(IpAddress, 11000);
-        Socket ClientSocket = new Socket(IpAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+    private static void ListenToServer()
+    {
 
-        try
-        {
-            //connect to the server and recieve the welcome message
-            ClientSocket.Connect(ServerEndPoint);
-            Console.WriteLine("connected to the server...");
-            ByteBuffer = new byte[1024];
-            BytesTransferred = ClientSocket.Receive(ByteBuffer);
-            Console.WriteLine($"{Encoding.ASCII.GetString(ByteBuffer)}");
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine(e.ToString());
-            return;
-        }
+    }
 
-        //main loop that sends messages to the server and recieves them back
-        Console.WriteLine("Type 'exit' when you are ready to exit");
-        while (true)
-        {
-            ByteBuffer = new byte[1024];
-            UserInput = Console.ReadLine();
+    private static void Main()
+    {
 
-            if (UserInput == "exit")
-            {
-                break;
-            }
 
-            BytesTransferred = ClientSocket.Send(Encoding.ASCII.GetBytes(UserInput));
-            if (BytesTransferred == 0)
-            {
-                break;
-            }
-            BytesTransferred = ClientSocket.Receive(ByteBuffer);
-            if (BytesTransferred == 0)
-            {
-                break;
-            }
+        //string UserInput = string.Empty;
+        //string Data = string.Empty;
+        //byte[] ByteBuffer;
+        //int BytesTransferred;
 
-            Console.WriteLine($"{Encoding.ASCII.GetString(ByteBuffer)}");
-        }
+        ////set up socket
+        //IPHostEntry Host = Dns.GetHostEntry("localhost");
+        //IPAddress IpAddress = Host.AddressList[0];
+        //IPEndPoint ServerEndPoint = new IPEndPoint(IpAddress, 11000);
+        //Socket ClientSocket = new Socket(IpAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 
-        //shutdown and close the socket
-        ClientSocket.Shutdown(SocketShutdown.Both);
-        ClientSocket.Close();
+        //try
+        //{
+        //    //connect to the server and recieve the welcome message
+        //    ClientSocket.Connect(ServerEndPoint);
+        //    Console.WriteLine("connected to the server...");
+        //    ByteBuffer = new byte[1024];
+        //    BytesTransferred = ClientSocket.Receive(ByteBuffer);
+        //    Console.WriteLine($"{Encoding.ASCII.GetString(ByteBuffer)}");
+        //}
+        //catch (Exception e)
+        //{
+        //    Console.WriteLine(e.ToString());
+        //    return;
+        //}
 
-        //press any key to close the terminal
-        Console.WriteLine("press any key to close...");
-        Console.ReadKey();
+        ////main loop that sends messages to the server and recieves them back
+        //Console.WriteLine("Type 'exit' when you are ready to exit");
+        //while (true)
+        //{
+        //    ByteBuffer = new byte[1024];
+        //    UserInput = Console.ReadLine();
+
+        //    if (UserInput == "exit")
+        //    {
+        //        break;
+        //    }
+
+        //    BytesTransferred = ClientSocket.Send(Encoding.ASCII.GetBytes(UserInput));
+        //    if (BytesTransferred == 0)
+        //    {
+        //        break;
+        //    }
+        //    BytesTransferred = ClientSocket.Receive(ByteBuffer);
+        //    if (BytesTransferred == 0)
+        //    {
+        //        break;
+        //    }
+
+        //    Console.WriteLine($"{Encoding.ASCII.GetString(ByteBuffer)}");
+        //}
+
+        ////shutdown and close the socket
+        //ClientSocket.Shutdown(SocketShutdown.Both);
+        //ClientSocket.Close();
+
+        ////press any key to close the terminal
+        //Console.WriteLine("press any key to close...");
+        //Console.ReadKey();
     }
 }

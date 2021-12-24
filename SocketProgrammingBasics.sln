@@ -9,7 +9,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SocketClient", "SocketClien
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EchoClient", "ChatClient\EchoClient.csproj", "{C32A4870-6AE4-40FB-B156-34C1E3450593}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EchoServer", "EchoServer\EchoServer.csproj", "{4A9361EB-82C4-48C9-A59B-5304D68E89A8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EchoServer", "EchoServer\EchoServer.csproj", "{4A9361EB-82C4-48C9-A59B-5304D68E89A8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetworkHelpers", "NetworkHelpers\NetworkHelpers.csproj", "{19B90D01-D910-4F16-9CB1-9757F2B5B103}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JunkCodeProject", "JunkCodeProject\JunkCodeProject.csproj", "{EF86CF59-2009-49D7-AC3E-FC8AAE3A0F2A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +37,14 @@ Global
 		{4A9361EB-82C4-48C9-A59B-5304D68E89A8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4A9361EB-82C4-48C9-A59B-5304D68E89A8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4A9361EB-82C4-48C9-A59B-5304D68E89A8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{19B90D01-D910-4F16-9CB1-9757F2B5B103}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{19B90D01-D910-4F16-9CB1-9757F2B5B103}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{19B90D01-D910-4F16-9CB1-9757F2B5B103}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{19B90D01-D910-4F16-9CB1-9757F2B5B103}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EF86CF59-2009-49D7-AC3E-FC8AAE3A0F2A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EF86CF59-2009-49D7-AC3E-FC8AAE3A0F2A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EF86CF59-2009-49D7-AC3E-FC8AAE3A0F2A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EF86CF59-2009-49D7-AC3E-FC8AAE3A0F2A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

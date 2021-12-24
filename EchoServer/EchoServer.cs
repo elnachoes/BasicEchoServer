@@ -14,19 +14,19 @@ namespace EchoServer
         private const int BYTE_BUFFER_SIZE = 1024;
 
         //mutex object
-        private static object lockObject;
+        private static object _lockObject;
 
         //list of client socket connections
         //private static List<Socket> activeConnections;
-        private static List<Connection> activeConnections;
+        private static List<Connection> _activeConnections;
 
-        private static Socket serverSocket;
+        private static Socket _serverSocket;
 
         public Server()
         {
-            activeConnections = new List<Connection>();
-            lockObject = new object();
-            serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            _activeConnections = new List<Connection>();
+            _lockObject = new object();
+            _serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
         }
 
 
@@ -53,82 +53,54 @@ namespace EchoServer
                 Console.Write("Waiting for a connection..." + NEW_LINE_SEQUENCE);
                 //var clientSocket = serverSocket.Accept();
 
-                var newClient = new Connection(serverSocket);
+                var newClientSocket = _serverSocket.Accept();
+
+                var newClient = new Connection(newClientSocket, RemoveClient, RecieveCallBack);
 
                 Console.Write("someone connected..." + NEW_LINE_SEQUENCE);
                 AddClient(newClient);
             }
         }
 
-        //this is a background thread that will listen to what clients send to the server
-        private static void ListenToClient(Connection client)
+        private static void RecieveCallBack(byte[] buffer, int bytesReceived, Connection connection)
         {
-            //variables for transfering data
-            byte[] byteBuffer = new byte[BYTE_BUFFER_SIZE];
-            int bytesTransferred;
+            connection._buffer = buffer;
+            connection._offset += bytesReceived;
+            connection._size = connection._buffer.Length - connection._offset;
 
-            //main listening loop that listens for bytes that come from the client
-            int offset = 0;
-            while (true)
+            var carriageReturnPosition = FindCarriageReturn(connection._buffer, connection._offset);
+
+            if (carriageReturnPosition > 0)
             {
-                var socketsToRemove = new List<Connection>();
-
-                bytesTransferred = client.Receive(byteBuffer, offset, byteBuffer.Length - offset);
-                if (bytesTransferred == 0)
+                //mutex to protect activeConnections
+                lock (_lockObject)
                 {
-                    lock (lockObject)
+                    foreach (var clientConnection in _activeConnections)
                     {
-                        activeConnections.Remove(client);
-                    }
-                    return;
-                }
-                offset += bytesTransferred;
-
-                var carriageReturnPosition = FindCarriageReturn(byteBuffer, offset);
-
-                //echo the input from one client to all users
-                if (carriageReturnPosition > 0)
-                {
-                    //mutex to protect activeConnections
-                    lock (lockObject)
-                    {
-                        foreach (var clientConnection in activeConnections)
+                        if (clientConnection != connection)
                         {
-                            if (clientConnection != client)
+                            var bytesTransferred = clientConnection.Send(connection._buffer, connection._offset);
+                            if (!connection._isConnected)
                             {
-                                bytesTransferred = clientConnection.Send(byteBuffer, offset);
-                                if (bytesTransferred == 0)
-                                {
-                                    activeConnections.Remove(client);
-                                    continue;
-                                }
-
+                                continue;
                             }
-
                         }
                     }
-
-                    //RemoveClients(socketsToRemove);
-                    offset = 0;
-                    Array.Clear(byteBuffer);
                 }
+
+                connection._offset = 0;
+                connection._size = 0;
+                Array.Clear(connection._buffer);
             }
         }
 
         //send a message to all clients from the server
         private static void ServerSendMessage(string message)
         {
-            foreach (var client in activeConnections)
+            foreach (var client in _activeConnections)
             {
                 message += CARRIAGE_RETURN_STRING;
                 var sendResult = client.Send(Encoding.ASCII.GetBytes(message), message.Length);
-                if (sendResult == 0)
-                {
-                    lock (lockObject)
-                    {
-                        activeConnections.Remove(client);
-                    }
-                }
             }
         }
 
@@ -137,28 +109,24 @@ namespace EchoServer
         {
             message += CARRIAGE_RETURN_STRING;
             var sendResult = client.Send(Encoding.ASCII.GetBytes(message), message.Length);
-            if (sendResult == 0)
-            {
-                activeConnections.Remove(client);
-            }
         }
 
         //adds a client socket and starts a thread to listen to that client
         private static void AddClient(Connection newClient)
         {
             //every time a new client joins add the socket to the activeConnections
-            lock (lockObject)
+            lock (_lockObject)
             {
-                activeConnections.Add(newClient);
+                _activeConnections.Add(newClient);
             }
 
             //send the welcome message out to the new client
             ServerSendMessage(newClient, "Welcome to the chat!");
 
-            //create a new background thread for listening to the new client
-            Thread listenToClients = new Thread(() => ListenToClient(newClient));
-            listenToClients.IsBackground = true;
-            listenToClients.Start();
+            var buffer = new byte[BYTE_BUFFER_SIZE];
+            var offset = 0;
+
+            newClient.StartRecieving(buffer, offset, buffer.Length);
         }
 
         //removes a client from the collection
@@ -166,12 +134,23 @@ namespace EchoServer
         {
             foreach (var client in clientsToRemove)
             {
-                if (activeConnections.Contains(client))
+                if (_activeConnections.Contains(client))
                 {
-                    lock (lockObject)
+                    lock (_lockObject)
                     {
-                        activeConnections.Remove(client);
+                        _activeConnections.Remove(client);
                     }
+                }
+            }
+        }
+
+        private static void RemoveClient(Connection client)
+        {
+            if (_activeConnections.Contains(client))
+            {
+                lock (_lockObject)
+                {
+                    _activeConnections.Remove(client);
                 }
             }
         }
@@ -179,14 +158,14 @@ namespace EchoServer
         public void HostServer()
         {
             //bind the socket and listen
-            serverSocket.Bind(new IPEndPoint(IPAddress.Any, SERVER_PORT));
-            serverSocket.Listen(LISTEN_COUNT);
+            _serverSocket.Bind(new IPEndPoint(IPAddress.Any, SERVER_PORT));
+            _serverSocket.Listen(LISTEN_COUNT);
 
             //server welcome message
             Console.Write("//-- echo server --//" + NEW_LINE_SEQUENCE);
 
             //start a separate thread for accepting clients
-            Thread acceptConnectionsThread = new Thread(() => AcceptConnections());
+            var acceptConnectionsThread = new Thread(() => AcceptConnections());
             acceptConnectionsThread.IsBackground = true;
             acceptConnectionsThread.Start();
 
