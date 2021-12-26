@@ -55,14 +55,14 @@ namespace EchoServer
 
                 var newClientSocket = _serverSocket.Accept();
 
-                var newClient = new Connection(newClientSocket, RemoveClient, RecieveCallBack);
+                var newClient = new Connection(newClientSocket, RemoveClient, ReceiveCallback);
 
                 Console.Write("someone connected..." + NEW_LINE_SEQUENCE);
                 AddClient(newClient);
             }
         }
 
-        private static void RecieveCallBack(byte[] buffer, int bytesReceived, Connection connection)
+        private static void ReceiveCallback(byte[] buffer, int bytesReceived, Connection connection)
         {
             connection._buffer = buffer;
             connection._offset += bytesReceived;
@@ -89,7 +89,6 @@ namespace EchoServer
                 }
 
                 connection._offset = 0;
-                connection._size = 0;
                 Array.Clear(connection._buffer);
             }
         }
@@ -126,7 +125,7 @@ namespace EchoServer
             var buffer = new byte[BYTE_BUFFER_SIZE];
             var offset = 0;
 
-            newClient.StartRecieving(buffer, offset, buffer.Length);
+            newClient.StartReceiving(buffer, offset, buffer.Length);
         }
 
         //removes a client from the collection
@@ -169,7 +168,7 @@ namespace EchoServer
             acceptConnectionsThread.IsBackground = true;
             acceptConnectionsThread.Start();
 
-            //main loop for recieving server commands
+            //main loop for receiving server commands
             while (true)
             {
                 //if the user types in exit in the server terminal it will shutdown the server

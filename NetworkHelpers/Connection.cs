@@ -64,7 +64,7 @@ public class Connection
         }
     }
 
-    public void StartRecieving(byte[] newBuffer, int newOffset, int newSize)
+    public void StartReceiving(byte[] newBuffer, int newOffset, int newSize)
     {
         _buffer = newBuffer;
         _offset = newOffset;
