@@ -2,40 +2,35 @@
 
 public class Connection
 {
-    public delegate void ReceiveCallback(byte[] buffer, int bytesReceived, Connection connection);
-    public delegate void ConnectionShutdownCallback(Connection connection);
+    private const int BYTE_BUFFER_SIZE = 1024;
+    private const byte CARRIAGE_RETURN_DECIMAL = 13;
+    private const string CARRIAGE_RETURN_STRING = "\r\n";
 
     private Socket _connectionSocket;
 
-    public bool _isConnected { get; private set; }
+    private Action<Connection, string> _recieveCallback { get; set; }
+    private Action<Connection> _connectionShutdownCallback { get; set; }
 
-    private ReceiveCallback _recieveCallback { get; set; }
-    private ConnectionShutdownCallback _connectionShutdownCallback { get; set; }
+    private byte[] _buffer = new byte[BYTE_BUFFER_SIZE];
+    private int _offset = 0;
+    private int _size = BYTE_BUFFER_SIZE;
 
-    public byte[] _buffer { get; set; }
-    public int _offset { get; set; }
-    public int _size { get; set; }
-
-    public Connection(Socket newConnectionSocket, ConnectionShutdownCallback connectionShutdownCallback, ReceiveCallback receiveCallback)
+    public Connection(Socket newConnectionSocket, Action<Connection> connectionShutdownCallback, Action<Connection, string> receiveCallback)
     {
         _connectionSocket = newConnectionSocket;
-        _isConnected = true;
         _connectionShutdownCallback = connectionShutdownCallback;
         _recieveCallback = receiveCallback;
     }
 
-    //public delegate void EndRec
-
-    public int Send(byte[] newBuffer, int newSize)
+    public int Send(string data)
     {
         try
         {
-            int bytesTransferred = _connectionSocket.Send(newBuffer, newSize, SocketFlags.None);
+            var dataBytes = System.Text.Encoding.UTF8.GetBytes($"{data}{CARRIAGE_RETURN_STRING}");
+
+            int bytesTransferred = _connectionSocket.Send(dataBytes, dataBytes.Length, SocketFlags.None);
             if (bytesTransferred == 0)
-            {
                 ShutDownSocket();
-                return 0;
-            }
             return bytesTransferred;
         }
         catch (Exception)
@@ -45,31 +40,8 @@ public class Connection
         }
     }
 
-    public int Receive(byte[] newBuffer, int newOffset, int newSize)
+    public void StartReceiving()
     {
-        try
-        {
-            int bytesTransferred = _connectionSocket.Receive(newBuffer, newOffset, newSize, SocketFlags.None);
-            if (bytesTransferred == 0)
-            {
-                ShutDownSocket();
-                return 0;
-            }
-            return bytesTransferred;
-        }
-        catch (Exception)
-        {
-            ShutDownSocket();
-            return 0;
-        }
-    }
-
-    public void StartReceiving(byte[] newBuffer, int newOffset, int newSize)
-    {
-        _buffer = newBuffer;
-        _offset = newOffset;
-        _size =  newSize;
-
         BeginReceive();
     }
 
@@ -88,7 +60,22 @@ public class Connection
                 ShutDownSocket();
                 return;
             }
-            _recieveCallback(_buffer, bytesReceived, this);
+
+            _offset += bytesReceived;
+            _size = _buffer.Length - _offset;
+
+            var carriageReturnPosition = FindCarriageReturn();
+
+            if (carriageReturnPosition > 0)
+            {
+                var data = System.Text.ASCIIEncoding.UTF8.GetString(_buffer);
+                _recieveCallback(this, data);
+
+                _offset = 0;
+                _size = _buffer.Length;
+                Array.Clear(_buffer);
+            }
+
             BeginReceive();
         }
         catch (Exception)
@@ -102,7 +89,19 @@ public class Connection
     {
         _connectionSocket.Shutdown(SocketShutdown.Both);
         _connectionSocket.Close();
-        _isConnected = false;
         _connectionShutdownCallback(this);
+    }
+
+    //This just returns the position in a byte array for where the carriage return symbole is
+    private int FindCarriageReturn()
+    {
+        for (var i = 0; i < _offset; i++)
+        {
+            if (_buffer[i] == CARRIAGE_RETURN_DECIMAL)
+            {
+                return i + 2;
+            }
+        }
+        return -1;
     }
 }
